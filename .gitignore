@@ -1,0 +1,25 @@
+# 실제 서버 로그와 분석 결과 (IP, 시리얼, 계정 정보가 들어 있으므로 절대 올리지 않는다)
+sample log/
+samples/
+reports/
+*_report.html
+*.tzz
+*.tgz
+*.tar.gz
+*.tar.xz
+*.tar.bz2
+*.zip
+*.7z
+
+# 실행 기록
+*.log
+
+# Python
+__pycache__/
+*.pyc
+
+# 편집기·OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
