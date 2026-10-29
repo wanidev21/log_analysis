@@ -3,6 +3,7 @@ sample log/
 samples/
 reports/
 *_report.html
+install_check_*.html
 *.tzz
 *.tgz
 *.tar.gz
@@ -18,8 +19,25 @@ reports/
 __pycache__/
 *.pyc
 
+# 자동 생성한 실행 폴더와 배포 ZIP
+dist/
+
 # 편집기·OS
 .vscode/
 .idea/
 Thumbs.db
 .DS_Store
+
+# 로컬 작업물 및 분리한 Git 저장소
+tmp/
+output/
+repositories/
+
+# Local data, temporary work and portfolio artifacts
+tmp/
+output/
+repositories/
+.env
+.env.*
+*.pem
+*.key

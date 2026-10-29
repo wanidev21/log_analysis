@@ -4,5 +4,5 @@
 벤더별 형식은 serverlog/vendors/ 의 파서가 맡는다.
 """
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"
 APP_NAME = "서버 로그 분석기"

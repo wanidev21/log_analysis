@@ -7,6 +7,7 @@ from datetime import datetime
 
 from . import APP_NAME, __version__
 from .core import SEV_LABEL, fmt_ts
+from .ui import CSS as UI_CSS, BRAND
 
 LEVEL_META = {
     "critical": ("심각", "!"),
@@ -143,9 +144,17 @@ def render_html(ctx, src_name, nav=""):
     }
     data_json = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     files_used = "".join("<li class='mono'>%s</li>" % esc(f) for f in sorted(set(ctx["files_used"])))
+    sm = (ctx.get("flow") or {}).get("summary") or {}
+    metrics = "".join('<div class="incident-metric"%s><label>%s</label><strong>%d</strong></div>' % (
+        ' style="--mc:var(%s)"' % color if color else '', label, sm.get(key, 0))
+        for key, label, color in (("incidents", "전체 사건", ""), ("fault", "장애 추정", "--crit"),
+                                  ("planned", "계획 작업", "--accent"), ("unexplained", "원인 미상", "--serious")))
 
     return HTML_TEMPLATE.format(
         nav=nav,
+        ui_css=UI_CSS, brand=BRAND, incident_metrics=metrics,
+        os_nav='<a href="#oslog"><b>03</b> OS 로그</a>' if osi else '',
+        os_quick='<a href="#oslog">OS 로그</a>' if osi else '',
         flow_section=render_flow(ctx.get("flow"), (ctx.get("os") or {}).get("tz_offset")),
         os_section=render_os(ctx.get("os")),
         title=esc("%s 로그 분석" % title_host),
@@ -225,7 +234,8 @@ def render_flow(flow, off=None):
     incs = flow["incidents"]
     order = {"fault": 0, "unexplained": 1, "planned": 2}
     # 계획 작업이라도 정상 종료 없이 강제로 재시작했다면 펼쳐서 보여준다
-    main = [i for i in incs if (i["kind"] != "planned" or i.get("forced")) and not i.get("work_period")]
+    main = [i for i in incs if i["kind"] == "fault" or i.get("forced")
+            or (i["kind"] != "planned" and not i.get("work_period"))]
     side = [i for i in incs if i not in main]
     main.sort(key=lambda i: (order[i["kind"]], -i["start"].timestamp()))
     side.sort(key=lambda i: -i["start"].timestamp())
@@ -244,7 +254,9 @@ def render_flow(flow, off=None):
            '직전 원인과 이후 복구 과정을 엮어 판정</small></h2>',
            '<div class="flow-sum">%s</div>' % "".join('<span class="chip">%s</span>' % esc(c) for c in chips)]
     if flow["notes"]:
-        out.append('<ul class="flow-notes">%s</ul>' % "".join("<li>%s</li>" % esc(n) for n in flow["notes"]))
+        out.append('<details class="flow-context"><summary>분석 범위·작업 기간 참고 사항</summary>'
+                   '<ul class="flow-notes">%s</ul></details>'
+                   % "".join("<li>%s</li>" % esc(n) for n in flow["notes"]))
     if not incs:
         out.append('<p class="empty">전원 꺼짐·재시작 같은 서비스 중단 기록이 없습니다.</p>')
     for i in main:
@@ -460,34 +472,44 @@ footer ul {{ columns: 2; padding-left: 18px; }}
 .theme-btn {{ float: right; }}
 @media (max-width: 640px) {{ footer ul {{ columns: 1; }} .f-critical {{ margin: 0 -12px; padding: 12px; }} section {{ padding: 16px 12px; }} }}
 @media print {{ .controls, .theme-btn {{ display: none; }} .scroll {{ max-height: none; }} }}
+{ui_css}
 </style>
+<script>try {{ const t=localStorage.getItem('serverlog-theme'); if(t==='light'||t==='dark')document.documentElement.dataset.theme=t; }} catch(e) {{}}</script>
 </head>
 <body>
+<aside class="app-sidebar" aria-label="리포트 탐색">
+  <a class="app-brand" href="#report-top">{brand}<span>ServerLog</span></a>
+  <div class="sidebar-caption">ANALYSIS REPORT</div>
+  <div class="side-label">분석 리포트</div>
+  <nav class="side-links"><a class="active" href="#flow"><b>01</b> 사건 흐름</a>
+    <a href="#findings"><b>02</b> 발견 사항</a>{os_nav}
+    <a href="#timeline"><b>04</b> 타임라인</a><a href="#events"><b>05</b> 전체 이벤트</a>
+    <a href="#system"><b>06</b> 장비·수집 정보</a></nav>
+  <div class="side-bottom">분석 근거를 함께 확인하세요.<br>판정은 수집된 기록에 따른 추정입니다.</div>
+</aside>
+<main class="app-main report-main">
 <div class="wrap">
+<div class="topbar" id="report-top"><div class="breadcrumb">분석 기록 &nbsp;/&nbsp; <b>로그 분석 리포트</b></div>
+  <div class="toolbar"><span class="version">v{version}</span><button type="button" id="themeBtn">테마 전환</button></div></div>
 {nav}
-<header>
-  <div class="controls theme-btn"><button type="button" id="themeBtn">테마 전환</button></div>
-  <h1>{host} 로그 분석 리포트</h1>
-  <div class="sub">원본: <span class="mono">{src}</span> · 생성: {gen} · {app} v{version}</div>
+<header class="page-heading report-heading">
+  <div class="eyebrow">BMC + OS INCIDENT REPORT</div>
+  <h1>{host}</h1>
+  <div class="sub">원본 <span class="mono">{src}</span><br>생성 {gen} · 모든 사건 시각은 UTC 기준</div>
 </header>
-
-<section>
-  <h2>시스템 정보</h2>
-  <dl class="grid">{head_kv}</dl>
-</section>
-
-<div class="tiles">{tiles}</div>
-
-<section>
+<div class="incident-metrics">{incident_metrics}</div>
+<nav class="report-nav" aria-label="빠른 이동"><a href="#flow">사건 흐름</a><a href="#findings">발견 사항</a>{os_quick}<a href="#timeline">타임라인</a><a href="#events">전체 이벤트</a><a href="#system">장비 정보</a></nav>
+{flow_section}
+<section id="findings">
   <h2>발견 사항 <small>자동 규칙 기반 · 최종 판단은 엔지니어가 확인</small></h2>
   {findings}
 </section>
 
-{flow_section}
-
 {os_section}
 
-<section>
+<section><h2>로그 집계 <small>개별 이벤트의 등급별 건수 · 사건 수와 구분</small></h2><div class="tiles">{tiles}</div></section>
+
+<section id="timeline">
   <h2>이벤트 타임라인 <small>{unit_label} 이벤트 수 · UTC</small></h2>
   <div class="legend">
     <span style="--c: var(--crit)">Error</span>
@@ -554,6 +576,9 @@ footer ul {{ columns: 2; padding-left: 18px; }}
 </section>
 </div>
 
+<details class="system-info" id="system"><summary>장비·수집 정보 확인</summary>
+<section><h2>시스템 정보</h2><dl class="grid">{head_kv}</dl></section></details>
+
 <section>
   <h2>BMC 시스템 로그 오류 패턴 <small>오류 키워드가 들어간 줄을 묶음 · {n_patterns}개 패턴 (상위 100개 표시)</small></h2>
   <div class="tbl-wrap scroll"><table>
@@ -572,6 +597,7 @@ footer ul {{ columns: 2; padding-left: 18px; }}
   <ul>{files_used}</ul>
 </footer>
 </div>
+</main>
 
 <script>
 const DATA = {data_json};
@@ -581,6 +607,7 @@ const DATA = {data_json};
     const dark = root.dataset.theme ? root.dataset.theme === 'dark'
       : matchMedia('(prefers-color-scheme: dark)').matches;
     root.dataset.theme = dark ? 'light' : 'dark';
+    try {{ localStorage.setItem('serverlog-theme',root.dataset.theme); }} catch(e) {{}}
   }});
 
   // ---------- 이벤트 표

@@ -1,3 +1,4 @@
 * text=auto
 # Windows 배치 파일은 CRLF 가 아니면 cmd 에서 오동작할 수 있다
 *.bat text eol=crlf
+*.sh text eol=lf

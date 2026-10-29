@@ -203,7 +203,11 @@ def analyze_flow(events, collected=None):
                if c and (c[0] == OUTCOME or (c[0] == ACTION and c[1] == "user_power"))]
     episodes = []
     for e, c in anchors:
-        if episodes and e["ts"] - episodes[-1][-1][0]["ts"] <= MERGE_GAP:
+        previous = episodes[-1][-1][0]["ts"] if episodes else None
+        boot_between = previous is not None and any(
+            c0[0] == BOOT and previous < ev0["ts"] < e["ts"]
+            for ev0, c0 in between(previous, e["ts"], roles={BOOT}))
+        if episodes and e["ts"] - previous <= MERGE_GAP and not boot_between:
             episodes[-1].append((e, c))
         else:
             episodes.append([(e, c)])

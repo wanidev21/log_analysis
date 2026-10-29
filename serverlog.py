@@ -36,6 +36,8 @@ def main(argv=None):
         m = re.fullmatch(r"(?:UTC)?([+-])(\d{1,2}):?(\d\d)?", args.os_tz.strip(), re.I)
         if not m:
             ap.error("--os-tz 는 +09:00 처럼 지정하세요.")
+        if int(m.group(2)) > 23 or int(m.group(3) or 0) > 59:
+            ap.error("--os-tz 시간은 0~23, 분은 0~59 범위여야 합니다.")
         tz_override = timedelta(hours=int(m.group(2)), minutes=int(m.group(3) or 0))
         if m.group(1) == "-":
             tz_override = -tz_override
@@ -57,12 +59,17 @@ def main(argv=None):
         return 2
 
     for ctx in results:
-        if args.output and len(results) == 1 and not os.path.isdir(args.output):
+        if args.output and len(results) == 1 and not os.path.isdir(args.output) and args.output.lower().endswith((".html", ".htm")):
             out = os.path.abspath(args.output)
         else:
             out = os.path.abspath(os.path.join(args.output or ".", "%s_report.html" % ctx["name"]))
-        with open(out, "w", encoding="utf-8") as f:
-            f.write(report.render_html(ctx, ctx["name"]))
+        try:
+            os.makedirs(os.path.dirname(out), exist_ok=True)
+            with open(out, "w", encoding="utf-8") as f:
+                f.write(report.render_html(ctx, ctx["name"]))
+        except OSError as e:
+            print("오류: 리포트를 저장할 수 없습니다 (%s). 출력 경로와 권한을 확인하세요." % e, file=sys.stderr)
+            return 2
 
         lv = Counter(x["level"] for x in ctx["findings"])
         print("리포트 생성: %s" % out)

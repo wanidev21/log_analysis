@@ -30,6 +30,7 @@ from urllib.parse import parse_qs, urlparse
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, APP_DIR)
 from serverlog import APP_NAME, __version__, core, oslog, report, vendors  # noqa: E402
+from serverlog.ui import CSS as UI_CSS, BRAND  # noqa: E402
 
 APP_ID = "serverlog_web"
 DEFAULT_PORT = 8765
@@ -400,41 +401,64 @@ h2 { font-size: 16px; margin: 0 0 10px; }
 .empty { color: var(--muted); }
 footer { margin-top: 36px; color: var(--muted); font-size: 12px; }
 @media (max-width: 560px) { .card { grid-template-columns: 1fr; } }
+__UI_CSS__
 </style>
+<script>try { const t=localStorage.getItem('serverlog-theme'); if(t==='light'||t==='dark')document.documentElement.dataset.theme=t; } catch(e) {}</script>
 </head>
 <body>
+<aside class="app-sidebar" aria-label="메뉴">
+  <a class="app-brand" href="#upload">__BRAND__<span>ServerLog</span></a>
+  <div class="sidebar-caption">SERVER DIAGNOSTICS</div>
+  <div class="side-label">워크스페이스</div>
+  <nav class="side-links"><a class="active" href="#upload"><b>01</b> 새 분석</a><a href="#history"><b>02</b> 분석 기록</a></nav>
+  <div class="side-label">지원 자료</div>
+  <div class="side-note">Lenovo IMM2 · XCC<br>Linux OS 로그 · sosreport<br><br>BMC와 OS 기록을 함께 확인</div>
+  <div class="side-bottom"><span class="local-dot"></span><span id="modeLabel">로컬 분석</span><br>로그는 실행 중인 PC에서 분석합니다.</div>
+</aside>
+<main class="app-main">
 <div class="wrap">
-  <header>
-    <div>
-      <h1>서버 로그 분석기</h1>
-      <div class="sub">서버 관리 컨트롤러(BMC) 덤프를 분석해 리포트를 만듭니다. 형식은 자동으로 판별합니다.</div>
-    </div>
-    <div style="display:flex;gap:8px">
-      <button type="button" id="theme">테마 전환</button>
+  <div class="topbar">
+    <div class="breadcrumb">워크스페이스 &nbsp;/&nbsp; <b>새 분석</b></div>
+    <div class="toolbar"><span class="version" id="versionLabel"></span>
+      <button type="button" id="theme" aria-label="밝은 테마와 어두운 테마 전환">테마 전환</button>
       <button type="button" id="quit">종료</button>
     </div>
+  </div>
+  <header class="page-heading" id="upload"><div class="eyebrow">BMC + OS LOG ANALYSIS</div>
+    <h1>서버 로그 분석기</h1>
+    <div class="sub">BMC와 OS 기록을 연결해, 장애 발생 전후의 흐름을 확인하세요.</div>
   </header>
-
+  <div class="upload-grid">
   <div class="drop" id="drop">
-    <div class="big">BMC 덤프와 OS 로그를 여기에 끌어다 놓으세요</div>
-    <div class="sub">BMC 덤프(폴더, .tgz, .tzz)와 OS 로그(sosreport, messages, dmesg 등)를 함께 놓으면
-      같은 서버끼리 묶어 한 시간축으로 분석합니다. 폴더는 필요한 파일만 골라서 올립니다.</div>
+    <div class="upload-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 16V3m-5 5 5-5 5 5M4 15v5h16v-5"/></svg></div>
+    <div class="big">분석할 로그를 여기에 놓으세요</div>
+    <div class="sub">BMC 덤프와 OS 로그를 함께 선택하면 같은 서버의 자료를 연결합니다.<br>폴더 또는 압축 파일을 선택할 수 있습니다.</div>
     <div class="btns">
       <button type="button" class="primary" id="pickDir">폴더 선택</button>
-      <button type="button" id="pickFile">파일 선택 (여러 개 가능)</button>
+      <button type="button" id="pickFile">파일 선택</button>
     </div>
     <input type="file" id="dirInput" webkitdirectory multiple hidden>
     <input type="file" id="fileInput" multiple hidden>
-    <div class="status" id="status"></div>
+    <div class="format-tags" aria-label="지원 자료"><span>IMM2 / XCC</span><span>SOSREPORT</span><span>SYSLOG / DMESG</span></div>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
   </div>
-
-  <section>
-    <h2>리포트 목록</h2>
+  <aside class="workflow-card" aria-label="분석 순서"><h2>분석은 이렇게 진행됩니다</h2>
+    <div class="workflow-step"><span>1</span><div><b>자료 연결</b><p>서버와 로그 형식을 식별합니다.</p></div></div>
+    <div class="workflow-step"><span>2</span><div><b>시간축 정리</b><p>BMC·OS 기록을 UTC 기준으로 맞춥니다.</p></div></div>
+    <div class="workflow-step"><span>3</span><div><b>사건 흐름 확인</b><p>원인 후보와 결과·복구 기록을 함께 봅니다.</p></div></div>
+  </aside>
+  </div>
+  <section class="history-panel" id="history">
+    <div class="section-head"><h2>분석 기록 <span class="count-pill" id="reportCount">0</span></h2>
+      <div class="list-controls"><input id="historySearch" type="search" placeholder="호스트명, 시리얼, 파일 검색" aria-label="분석 기록 검색">
+        <select id="historyFilter" aria-label="분석 기록 필터"><option value="all">전체 리포트</option><option value="critical">심각 항목 포함</option><option value="warning">주의 항목 포함</option></select></div>
+    </div>
     <div class="list" id="list"><div class="empty">불러오는 중…</div></div>
   </section>
 
   <footer id="foot"></footer>
 </div>
+</main>
 <script>
 const CFG = __CONFIG__;
 const $ = id => document.getElementById(id);
@@ -442,6 +466,9 @@ const statusEl = $('status');
 const H = {'X-ServerLog': '1'};
 const escH = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 let busy = false;
+let reportItems = [];
+$('versionLabel').textContent = `v${CFG.version}`;
+$('modeLabel').textContent = CFG.local ? '내 PC 전용' : '공유 모드';
 
 $('foot').textContent = `${CFG.app} v${CFG.version} · 지원 형식: ` +
   CFG.formats.map(f => `${f.vendor} ${f.name}`).join(', ') + ' · ' +
@@ -452,6 +479,7 @@ $('theme').onclick = () => {
   const r = document.documentElement;
   const dark = r.dataset.theme ? r.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
   r.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('serverlog-theme',r.dataset.theme); } catch(e) {}
 };
 $('quit').onclick = async () => {
   try { await fetch('/api/shutdown', {method: 'POST', headers: H}); } catch (e) {}
@@ -466,12 +494,28 @@ function setStatus(html, err) {
 
 // ---------- 리포트 목록
 async function loadList() {
-  const items = await (await fetch('/api/reports')).json();
+  try {
+    const response = await fetch('/api/reports');
+    if (!response.ok) throw new Error('load failed');
+    reportItems = await response.json();
+    renderList();
+  } catch(e) {
+    $('list').innerHTML = '<div class="empty-state"><strong>분석 기록을 불러오지 못했습니다.</strong>연결 상태를 확인하고 다시 열어주세요.</div>';
+  }
+}
+function renderList() {
+  const q = $('historySearch').value.trim().toLowerCase();
+  const filter = $('historyFilter').value;
+  const items = reportItems.filter(i => [i.host,i.serial,i.name,i.model].join(' ').toLowerCase().includes(q) &&
+    (filter === 'all' || (i.findings || {})[filter] > 0));
+  $('reportCount').textContent = q || filter !== 'all' ? `${items.length} / ${reportItems.length}` : reportItems.length;
   const list = $('list');
-  if (!items.length) { list.innerHTML = '<div class="empty">아직 분석한 리포트가 없습니다.</div>'; return; }
+  if (!items.length) { list.innerHTML = reportItems.length
+    ? '<div class="empty-state"><strong>조건에 맞는 분석 기록이 없습니다.</strong>검색어나 필터를 변경해 보세요.</div>'
+    : '<div class="empty-state"><strong>첫 번째 분석을 시작해 보세요.</strong>로그를 선택하면 분석 결과가 여기에 보관됩니다.</div>'; return; }
   list.innerHTML = items.map(i => {
     const f = i.findings || {};
-    const chip = (n, label, c) => `<span class="chip" style="--c:${c}">${label} ${n}</span>`;
+    const chip = (n, label, c) => `<span class="chip ${n ? label === '심각' ? 'chip-critical' : '' : 'chip-zero'}" style="--c:${c}">${label} ${n}</span>`;
     return `<div class="card">
       <div>
         <a class="title" href="/reports/${encodeURIComponent(i.id)}.html">${escH(i.host || i.serial || i.name)}</a>
@@ -479,7 +523,7 @@ async function loadList() {
         <div class="meta mono">${escH(i.name)}</div>
         <div class="chips">${chip(f.critical || 0, '심각', 'var(--crit)')}${chip(f.warning || 0, '주의', 'var(--warn)')}${chip(f.info || 0, '참고', 'var(--info)')}
           <span class="meta">이벤트 ${i.events}건 · 수집 ${escH(i.dump_time || '-')} UTC · 분석 ${escH(i.created)}</span></div>
-        ${(i.top || []).length ? '<ul class="top">' + i.top.map(t => `<li>${escH(t)}</li>`).join('') + '</ul>' : ''}
+        ${(i.top || []).length ? '<ul class="top">' + i.top.slice(0,2).map(t => `<li>${escH(t)}</li>`).join('') + '</ul>' : ''}
       </div>
       <div class="actions">
         <a href="/reports/${encodeURIComponent(i.id)}.html">열기</a>
@@ -495,6 +539,8 @@ async function loadList() {
     loadList();
   });
 }
+$('historySearch').addEventListener('input',renderList);
+$('historyFilter').addEventListener('change',renderList);
 
 // ---------- 업로드
 const isArchive = n => /\.(tgz|tar\.gz|tar\.xz|txz|tar\.bz2|tbz2|tar|zip|tzz|lzo)$/i.test(n);
@@ -609,6 +655,8 @@ loadList();
 </body>
 </html>
 """
+
+INDEX_HTML = INDEX_HTML.replace('__UI_CSS__', UI_CSS).replace('__BRAND__', BRAND)
 
 
 if __name__ == "__main__":
